@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纹理</title>
+</head>
+<body onload="init()">
+    <canvas id="webglCanvas" width="700" height="700"></canvas>
+    <script src="../glMatrix-0.9.6.min.js"></script>
+    <script>
+        let gl;
+        const vertexString = `
+            attribute vec4 a_position;
+            uniform   mat4   proj;
+            void main(void) {
+                gl_Position = proj * a_position;
+                gl_PointSize = 16.0;
+            }
+        `;
+        const fragmentString = `
+            precision mediump float;
+            uniform sampler2D texture;
+            void main() {
+                vec4 color = texture2D(texture, gl_PointCoord);
+                // if(color.a < 0.1)
+                //     discard;
+                gl_FragColor = color;
+            }
+        `;
+        let projMat4 = mat4.create();
+        let uniformTexture = 0;
+        let textureHandle;
+        function init() {
+            initWebgl();
+            initShader();
+            initBuffer();
+        }
+        function initWebgl() {
+            const div = document.getElementById('webglCanvas');
+            gl = div.getContext('webgl');
+            gl.viewport(0, 0, div.clientWidth, div.clientHeight);
+            mat4.ortho(0, div.clientWidth, div.clientHeight, 0, -1.0, 1.0, projMat4);
+        }
+        function initShader() {
+            let vsShader = gl.createShader(gl.VERTEX_SHADER);
+            let fsShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(vsShader, vertexString);
+            gl.shaderSource(fsShader, fragmentString);
+            gl.compileShader(vsShader);
+            gl.compileShader(fsShader);
+            if(!gl.getShaderParameter(vsShader, gl.COMPILE_STATUS)) {
+                const err = gl.getShaderInfoLog(vsShader);
+                console.log(err);
+            }
+            if(!gl.getShaderParameter(fsShader, gl.COMPILE_STATUS)) {
+                const err = gl.getShaderInfoLog(fsShader);
+                console.log(err);
+            }
+            const program = gl.createProgram();
+            gl.attachShader(program, vsShader);
+            gl.attachShader(program, fsShader);
+            gl.linkProgram(program);
+            gl.useProgram(program);
+            gl.program = program;
+        }
+        function initBuffer() {
+            const arr = [
+                100.0, 100.0, 0.0, 1.0,
+                100.0, 104.0, 0.0, 1.0,
+                100.0, 200.0, 0.0, 1.0,
+                200.0, 200.0, 0.0, 1.0,
+            ]
+            let pointPosition = new Float32Array(arr);
+            let aPosition = gl.getAttribLocation(gl.program, 'a_position');
+            let triangleBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, triangleBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, pointPosition, gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 4, gl.FLOAT, false, 16, 0);
+            let uniformProj = gl.getUniformLocation(gl.program, 'proj');
+            gl.uniformMatrix4fv(uniformProj, false, projMat4);
+
+            uniformTexture = gl.getUniformLocation(gl.program, 'texture');
+
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            initTexture('point16.png');
+        }
+        function handleLoadedTexture(texture) {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+            // 因为一步原因所以要加在这里
+            gl.uniform1i(uniformTexture, 0);
+            draw();
+        }
+        function initTexture(imageFile) {
+            textureHandle = gl.createTexture();
+            textureHandle.image = new Image();
+            textureHandle.image.src = imageFile;
+            textureHandle.image.onload = function() {
+                handleLoadedTexture(textureHandle);
+            }
+        }
+        function draw() {
+            gl.clearColor(1.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+            gl.drawArrays(gl.POINTS, 0, 3);
+        }
+    </script>
+</body>
+</html>

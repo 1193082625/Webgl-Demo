@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绘制三角形</title>
+</head>
+<body onload="init()">
+    <canvas id="webglCanvas" width="800" height="600"></canvas>
+    <script>
+        let webgl;
+        // Set vertex shader content
+        let vertexString = `
+            attribute vec3 a_position;
+            void main() {
+                gl_Position = vec4(a_position, 1.0);
+            }
+        `;
+        // Set fragment shader content
+        let fragmentString = `
+            void main() {
+                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            }
+        `;
+
+        // 入口函数
+        function init() {
+            initWebgl();
+            initShader();
+            initBuffer();
+            draw();
+        }
+
+        function initWebgl() {
+            // Get the canvas element through id
+            const div = document.getElementById('webglCanvas');
+            // Assign webgl context to global object webgl
+            webgl = div.getContext('webgl');
+            // Set the webgl view size
+            webgl.viewport(0, 0, div.clientWidth, div.clientHeight);
+        }
+
+        // 定点着色器
+        function initShader() {
+            // create shader container
+            let shaderVs = webgl.createShader(webgl.VERTEX_SHADER);
+            let shaderFs = webgl.createShader(webgl.FRAGMENT_SHADER);
+
+            // Associate the shader container with the content
+            webgl.shaderSource(shaderVs, vertexString);
+            webgl.shaderSource(shaderFs, fragmentString);
+
+            // compile shader
+            webgl.compileShader(shaderVs);
+            webgl.compileShader(shaderFs);
+
+            // Create program
+            let program = webgl.createProgram();
+            // Associate the shader with program
+            webgl.attachShader(program, shaderVs);
+            webgl.attachShader(program, shaderFs);
+
+            webgl.linkProgram(program);
+            webgl.useProgram(program);
+            webgl.program = program;
+        }
+
+        // 数据缓冲区初始化函数
+        function initBuffer() {
+            // Sets the vertex coordinates of the triangle
+            let arr = [
+                0.1, 0.4, 0,
+                0.1, 0.5, 0,
+                0.2, 0.4, 0
+            ];
+            // Create a buffer and configure it
+            let float = new Float32Array(arr);
+            let buffer = webgl.createBuffer();
+            webgl.bindBuffer(webgl.ARRAY_BUFFER, buffer);
+            webgl.bufferData(webgl.ARRAY_BUFFER, float, webgl.STATIC_DRAW);
+            
+            let aPosition = webgl.getAttribLocation(webgl.program, 'a_position');
+            webgl.vertexAttribPointer(aPosition, 3, webgl.FLOAT, false, 0, 0);
+            webgl.enableVertexAttribArray(aPosition);
+
+        }
+
+        // webgl的绘制函数
+        function draw() {
+            webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+            webgl.clear(webgl.COLOR_BUFFER_BIT);
+            webgl.drawArrays(webgl.TRIANGLES, 0, 3);
+        }
+    </script>
+</body>
+</html>

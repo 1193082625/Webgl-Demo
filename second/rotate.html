@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旋转</title>
+</head>
+<body onload="init()">
+    <canvas id="webglCanvas" width="800" height="800"></canvas>
+    <script src=""></script>
+    <script>
+        let gl;
+        const vsString = `
+            attribute vec3 a_position;
+            uniform float angle;
+            void main() {
+                gl_Position = vec4(a_position.x*cos(angle)-a_position.y*sin(angle), a_position.x*sin(angle)+a_position.y*cos(angle), 0, 1.0);
+            }
+        `;
+        const fsString = `
+            void main() {
+                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            }
+        `;
+        function init() {
+            initWebgl();
+            initShader();
+            initBuffer();
+            draw();
+        }
+        function initWebgl() {
+            const div = document.getElementById('webglCanvas');
+            gl = div.getContext('webgl');
+            gl.viewport(0, 0, div.clientWidth, div.clientHeight);
+        }
+        function initShader() {
+            let shaderVs = gl.createShader(gl.VERTEX_SHADER);
+            let shaderFs = gl.createShader(gl.FRAGMENT_SHADER);
+
+            gl.shaderSource(shaderVs, vsString);
+            gl.shaderSource(shaderFs, fsString);
+
+            gl.compileShader(shaderVs);
+            gl.compileShader(shaderFs);
+
+            let program = gl.createProgram();
+            gl.attachShader(program, shaderVs);
+            gl.attachShader(program, shaderFs);
+
+            gl.linkProgram(program);
+            gl.useProgram(program);
+            gl.program = program;
+        }
+        function initBuffer() {
+            let arr = [
+                0.1, 0.4, 0,
+                0.1, 0.5, 0,
+                0.2, 0.4, 0
+            ];
+            let float = new Float32Array(arr);
+            let buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, float, gl.STATIC_DRAW);
+
+            let aPosition = gl.getAttribLocation(gl.program, 'a_position');
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(aPosition);
+
+            let uAngle = gl.getUniformLocation(gl.program, "angle");
+            let angle = 90 * Math.PI / 180;
+            gl.uniform1f(uAngle, angle);
+        }
+        function draw() {
+            gl.clearColor(1.0, 0, 0, 0.3);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+    </script>
+</body>
+</html>

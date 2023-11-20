@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使用webgl.drawElements</title>
+</head>
+<body onload="init()">
+    <canvas id="webglCanvas" width="800" height="800"></canvas>
+    <script src="../gl-matrix-min.js"></script>
+    <script>
+        let webgl;
+        let projMat4 = glMatrix.mat4.create(); // 用于接收webgl返回的投影矩阵
+        // projMat4 = glMatrix.mat4.create();
+        // 着色器有两种，一种是片元着色器(fragmentString)，一种是顶点着色器(vertexString)
+        // proj * a_position意思是投影 * 坐标，即对坐标进行转换后赋值给webgl的顶点坐标
+        let vertexString = `
+            attribute vec4 a_position;
+            uniform mat4 proj;
+            void main() {
+                gl_Position = proj * a_position;
+                gl_PointSize= 60.0;
+            }
+        `;
+        let fragmentString = `
+            void main() {
+                gl_FragColor = vec4(0, 0, 1.0, 1.0);
+            }
+        `;
+
+        // 入口函数
+        function init() {
+            initWebgl();
+            initShader();
+            initBuffer();
+            draw();
+        }
+
+        function initWebgl() {
+            let webglDiv = document.getElementById('webglCanvas');
+            // 获取webgl上下文
+            webgl = webglDiv.getContext('webgl');
+            // 设置webgl可视区
+            webgl.viewport(0, 0, webglDiv.clientWidth, webglDiv.clientHeight);
+            glMatrix.mat4.ortho(projMat4, 0, webglDiv.clientWidth, webglDiv.clientHeight, 0, -1, 1);
+        }
+
+        // 定点着色器
+        function initShader() {
+            // 定义一个shader容器
+            let vsshader = webgl.createShader(webgl.VERTEX_SHADER);
+            let fssagder = webgl.createShader(webgl.FRAGMENT_SHADER);
+
+            // 将文本和容器进行一对一绑定
+            webgl.shaderSource(vsshader, vertexString);
+            webgl.shaderSource(g=fssagder, fragmentString);
+
+            // 计算shader
+            webgl.compileShader(vsshader);
+            webgl.compileShader(fssagder);
+
+            // 创建项目
+            let program = webgl.createProgram();
+            webgl.attachShader(program, vsshader);
+            webgl.attachShader(program, fssagder);
+
+            // 将项目和webgl进行连接
+            webgl.linkProgram(program);
+            webgl.useProgram(program);
+
+            // 将新建项目挂载到webgl上，方便后面使用
+            webgl.program = program;
+        }
+
+        // 数据缓冲区初始化函数
+        function initBuffer() {
+            let aPosition = webgl.getAttribLocation(webgl.program, 'a_position');
+            let arrIndex = [
+                0, 1, 2,
+                0, 3, 4,
+            ]
+            let arr = [
+                100.0, 100.0, 0, 1.0,
+                200.0, 200.0, 0, 1.0,
+
+                300.0, 200.0, 0, 1.0,
+                400.0, 500.0, 0, 1.0,
+                500.0, 600.0, 0, 1.0,
+            ]
+            // 创建一个数据缓冲区
+            let pointPosition = new Float32Array(arr);
+            let lineBuffer = webgl.createBuffer();
+            webgl.bindBuffer(webgl.ARRAY_BUFFER, lineBuffer);
+            webgl.bufferData(webgl.ARRAY_BUFFER, pointPosition, webgl.STATIC_DRAW);
+            webgl.enableVertexAttribArray(aPosition);
+            webgl.vertexAttribPointer(aPosition, 4, webgl.FLOAT, false, 4 * 4, 0*4);
+
+            // 创建索引缓冲区
+            let indexArr = new Uint16Array(arrIndex);
+            let indexBuffer = webgl.createBuffer();
+            webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER,indexArr, webgl.STATIC_DRAW);
+
+            // 坐标系赋值
+            let uniforproj = webgl.getUniformLocation(webgl.program, "proj");
+            webgl.uniformMatrix4fv(uniforproj, false, projMat4);
+        }
+
+        // webgl的绘制函数
+        function draw() {
+            webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+            webgl.clear(webgl.COLOR_BUFFER_BIT | webgl.DEPTH_BUFFER_BIT);
+            // 绘制一个三角形
+            // 6是arrIndex.length
+            webgl.drawElements(webgl.TRIANGLES, 6, webgl.UNSIGNED_SHORT, 0);
+
+        }
+    </script>
+</body>
+</html>

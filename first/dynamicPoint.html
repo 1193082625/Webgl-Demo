@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态绘制点坐标</title>
+</head>
+<body onload="init()">
+    <canvas id="webglCanvas" width="500" height="500"></canvas>
+    <script src="../glMatrix-0.9.6.min.js"></script>
+    <script>
+        let webgl;
+        let webglDiv;
+        let projMat4 = mat4.create(); // 用于接收webgl返回的投影矩阵
+        let dynamicPoints = []; // 用于放置动态添加的点
+        // 着色器有两种，一种是片元着色器(fragmentString)，一种是顶点着色器(vertexString)
+        let vertexString = `
+            attribute vec3 a_position;
+            uniform mat4 proj;
+            void main() {
+                gl_Position = vec4(a_position, 1.0);
+                gl_PointSize= 60.0;
+            }
+        `;
+        let fragmentString = `
+            precision mediump float;
+            void main() {
+                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            }
+        `;
+
+        // 入口函数
+        function init() {
+            initWebgl();
+            initShader();
+            initBuffer();
+            webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+            webgl.clear(webgl.COLOR_BUFFER_BIT);
+        }
+
+        function initWebgl() {
+            webglDiv = document.getElementById('webglCanvas');
+            // 获取webgl上下文
+            webgl = webglDiv.getContext('webgl');
+            // 设置webgl可视区
+            webgl.viewport(0, 0, webglDiv.clientWidth, webglDiv.clientHeight);
+            // 设置投影
+            mat4.ortho(0, webglDiv.clientWidth, webglDiv.clientHeight, 0, -1.0, 1.0, projMat4);
+        }
+
+        // 定点着色器
+        function initShader() {
+            // 定义一个shader容器
+            let vsshader = webgl.createShader(webgl.VERTEX_SHADER);
+            let fsshader = webgl.createShader(webgl.FRAGMENT_SHADER);
+
+            // 将文本和容器进行一对一绑定
+            webgl.shaderSource(vsshader, vertexString);
+            webgl.shaderSource(fsshader, fragmentString);
+
+            // 计算shader
+            webgl.compileShader(vsshader);
+            webgl.compileShader(fsshader);
+
+            if(!webgl.getShaderParameter(vsshader, webgl.COMPILE_STATUS)) {
+                let err = webgl.getShaderInfoLog(vsshader);
+                console.log(err);
+                return;
+            }
+            if(!webgl.getShaderParameter(fsshader, webgl.COMPILE_STATUS)) {
+                let err = webgl.getShaderInfoLog(fsshader);
+                console.log(err);
+                return;
+            }
+
+            // 创建项目
+            let program = webgl.createProgram();
+            webgl.attachShader(program, vsshader);
+            webgl.attachShader(program, fsshader);
+
+            // 将项目和webgl进行连接
+            webgl.linkProgram(program);
+            webgl.useProgram(program);
+
+            // 将新建项目挂载到webgl上，方便后面使用
+            webgl.program = program;
+        }
+
+        // 数据缓冲区初始化函数
+        function initBuffer() { 
+            // 获取shader的变量
+            let aPosition = webgl.getAttribLocation(webgl.program, "a_position");
+
+            document.addEventListener('mousedown', function(e) {
+                let x = e.clientX;
+                let y = e.clientY;
+                let rect = e.target.getBoundingClientRect();
+                // canvas元素相对于浏览器的居左和居上的距离
+                let pointx = ((x - rect.left) - (webglDiv.clientWidth / 2)) / (webglDiv.clientWidth / 2);
+                let pointy = - ((y - rect.top) - (webglDiv.clientHeight / 2)) / (webglDiv.clientHeight / 2);
+                // let pointx = ((x - left) - 512) / 512;
+                // let pointy = - ((y - top) - (768 / 2)) / (768 / 2);
+                dynamicPoints.push(pointx);
+                dynamicPoints.push(pointy);
+                dynamicPoints.push(0);
+
+                // 创建一个数据缓冲区
+                let pointPosition = new Float32Array(dynamicPoints);
+                let pointBuffer = webgl.createBuffer();
+                webgl.bindBuffer(webgl.ARRAY_BUFFER, pointBuffer);
+                webgl.bufferData(webgl.ARRAY_BUFFER, pointPosition, webgl.STATIC_DRAW);
+                // 启用
+                webgl.enableVertexAttribArray(aPosition);
+                webgl.vertexAttribPointer(aPosition, 3, webgl.FLOAT, false, 0, 0);
+
+                webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+                webgl.clear(webgl.COLOR_BUFFER_BIT | webgl.DEPTH_BUFFER_BIT);
+                webgl.drawArrays(webgl.POINTS, 0, dynamicPoints.length / 3);
+            })
+
+            // 坐标系赋值
+            let uniforproj = webgl.getUniformLocation(webgl.program, "proj");
+            webgl.uniformMatrix4fv(uniforproj, false, projMat4);
+        }
+
+        // webgl的绘制函数
+        function draw() {
+            webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+            webgl.clear(webgl.COLOR_BUFFER_BIT);
+            // webgl.drawArrays(webgl.POINTS, 0, 1);
+        }
+    </script>
+</body>
+</html>
